@@ -164,14 +164,14 @@
 <script type="text/javascript" src="../js/hidebib.js"></script>
 <link href='https://fonts.googleapis.com/css?family=Titillium+Web:400,600,400italic,600italic,300,300italic' rel='stylesheet' type='text/css'>
   <head>
-    <title>Endo-Depth-and-Motion: Localization and Scene Reconstruction from Endoscopic Videos using Depth Networks and Pseudo-RGBD constraints</title>
-    <meta property='og:title' content='Endo-Depth-and-Motion: Localization and Scene Reconstruction from Endoscopic Videos using Depth Networks and Pseudo-RGBD constraints' />
-    <meta property="og:description" content="Endo-Depth-and-Motion: Localization and Scene Reconstruction from Endoscopic Videos using Depth Networks and Pseudo-RGBD constraints" />
+    <title>Endo-Depth-and-Motion: Localization and Reconstruction in Endoscopic Videos using Depth Networks and Photometric Constraints</title>
+    <meta property='og:title' content='Endo-Depth-and-Motion: Localization and Reconstruction in Endoscopic Videos using Depth Networks and Photometric Constraints' />
+    <meta property="og:description" content="Endo-Depth-and-Motion: Localization and Reconstruction in Endoscopic Videos using Depth Networks and Photometric Constraints" />
   </head>
 
   <body>
         <br>
-        <center><span style="font-size:33px;font-weight:bold;">Endo-Depth-and-Motion: Localization and Scene Reconstruction from Endoscopic Videos using Depth Networks and Pseudo-RGBD constraints</span></center><br/>
+        <center><span style="font-size:33px;font-weight:bold;">Endo-Depth-and-Motion: Localization and Reconstruction in Endoscopic Videos using Depth Networks and Photometric Constraints</span></center><br/>
         <table align=center width=1000px>
           <tr>
             <td align=center width=260px>
@@ -215,7 +215,7 @@
         </table>
 
         <div id="abstract" class="normaltext-cfl" style="">
-            Estimating a 3D reconstruction and the camera motion from monocular endoscopic images is challenging due to factors like the deformation of the cavities and the lack of texture. In this paper we propose Endo-Depth-and-Motion, a pipeline for estimating dense depth and camera poses in monocular endoscopies. Our approach leverages recent advances in unsupervised single-view depth learning and estimates the camera motion from pseudo-RGBD keyframes. Our experimental results in the public dataset Hamlyn demonstrates that we outperform the state of the art both in accuracy and robustness.
+          Estimating a scene reconstruction and the camera motion from in-body videos is challenging due to several factors, <i>e.g.<i> the deformation of in-body cavities or the lack of texture. In this paper we present <i>Endo-Depth-and-Motion<i>, a pipeline that estimates the 6-degrees-of-freedom camera pose and dense 3D scene models from monocular endoscopic videos. Our approach leverages recent advances in self-supervised depth networks to generate <i>{pseudo-<i>RGBD frames, then tracks the camera pose using photometric residuals and fuses the registered depth maps in a volumetric representation. We present an extensive experimental evaluation in the public dataset Hamlyn, showing high-quality results and comparisons against relevant baselines. We also release all models and code for future comparisons.
         <br><br>
 
       </div>
@@ -223,7 +223,7 @@
 
       <hr>
 
-        <center id="download-dataset"><h1>Hamlyn rectified dataset and pseudo-ground truth</h1></center>
+        <center id="download-dataset"><h1>Hamlyn rectified dataset with ground truth and Endo-Depth models</h1></center>
         <div class="normaltext-cfl" style="">
         
         <br>
