@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAGaS: Pixel-Aligned 1DoF Gaussian Splatting for Depth Refinement</title>
+  <meta name="description" content="PAGaS refines per-view depth maps with pixel-aligned 1DoF Gaussian splatting." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #111418;
+      --muted: #5b6570;
+      --accent: #1a73e8;
+      --accent-dark: #0b57c9;
+      --card: #f6f8fa;
+      --border: #e5e9ef;
+      --code-bg: #0f172a;
+      --code-fg: #e2e8f0;
+      --max: 880px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--fg);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-dark); text-decoration: underline; }
+    code, pre { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; }
+
+    .container { max-width: var(--max); margin: 0 auto; padding: 0 20px; }
+
+    header.hero {
+      text-align: center;
+      padding: 40px 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero h1 {
+      font-size: 3.6rem;
+      font-weight: 700;
+      margin: 0 0 4px;
+      letter-spacing: -0.02em;
+    }
+    .hero h2 {
+      font-size: 1.35rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin: 0 0 10px;
+    }
+    .venue {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(26, 115, 232, 0.10);
+      color: var(--accent-dark);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      margin-bottom: 12px;
+    }
+    .venue:hover {
+      background: rgba(26, 115, 232, 0.16);
+      color: var(--accent-dark);
+      text-decoration: none;
+    }
+    .authors {
+      font-size: 1rem;
+      margin: 8px auto 2px;
+      max-width: 720px;
+    }
+    .authors a { color: var(--fg); }
+    .affil { color: var(--muted); font-size: 0.95rem; margin: 0 0 12px; }
+    .sup { font-size: 0.75em; vertical-align: super; color: var(--accent); }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: var(--fg);
+      color: #fff !important;
+      font-size: 0.92rem;
+      font-weight: 500;
+      border: 1px solid var(--fg);
+    }
+    .badge:hover { background: var(--accent); border-color: var(--accent); text-decoration: none; }
+    .badge.ghost { background: #fff; color: var(--fg) !important; border-color: var(--border); }
+    .badge.ghost:hover { background: var(--card); color: var(--fg) !important; border-color: var(--fg); }
+
+    section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    section h3 {
+      font-size: 1.55rem;
+      margin: 0 0 16px;
+      letter-spacing: -0.01em;
+    }
+    section p {
+      color: #2b3138;
+      text-align: justify;
+      text-justify: inter-word;
+    }
+
+    .teaser {
+      text-align: center;
+      padding: 14px 0 0;
+    }
+    .teaser img {
+      max-width: 80%;
+      height: auto;
+    }
+    .caption {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 10px;
+    }
+
+    .pipeline {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.92rem;
+      color: var(--fg);
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+    .feature {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      background: #fff;
+    }
+    .feature h4 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+    .feature p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+
+    #depth-refinement {
+      --compare-lens-size: 136px;
+    }
+    #depth-refinement .container {
+      max-width: 1160px;
+    }
+    #depth-refinement > .container > h3,
+    #depth-refinement > .container > p {
+      max-width: calc(var(--max) - 40px);
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .refinement-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 8px;
+      margin-top: 24px;
+    }
+    .refinement-card {
+      margin: 0;
+      min-width: 0;
+    }
+    .compare-frame {
+      --position: 50%;
+      position: relative;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      box-shadow: 0 12px 24px rgba(17, 20, 24, 0.04);
+    }
+    .compare-frame:focus-within {
+      box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.18), 0 12px 24px rgba(17, 20, 24, 0.04);
+    }
+    .compare-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      pointer-events: none;
+      user-select: none;
+    }
+    .compare-image.after-image {
+      clip-path: inset(0 0 0 var(--position));
+    }
+    .compare-badge {
+      position: absolute;
+      top: 12px;
+      z-index: 2;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(17, 20, 24, 0.72);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      pointer-events: none;
+    }
+    .compare-badge-left {
+      left: 12px;
+    }
+    .compare-badge-right {
+      right: 12px;
+    }
+    .compare-lens {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      z-index: 4;
+      width: var(--compare-lens-size);
+      height: var(--compare-lens-size);
+      overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, 1.00);
+      border-radius: 50%;
+      background: transparent;
+      box-shadow:
+        0 14px 32px rgba(17, 20, 24, 0.24),
+        inset 0 0 0 4px rgba(255, 255, 255, 0.28),
+        inset 0 0 18px rgba(255, 255, 255, 0.36),
+        inset 0 0 42px rgba(255, 255, 255, 0.18);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .compare-lens::before,
+    .compare-lens::after {
+      content: "";
+      position: absolute;
+      inset: 1px;
+      z-index: 3;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .compare-lens::before {
+      background: radial-gradient(
+        circle at center,
+        rgba(255, 255, 255, 0.00) 48%,
+        rgba(255, 255, 255, 0.00) 56%,
+        rgba(255, 255, 255, 0.08) 66%,
+        rgba(255, 255, 255, 0.22) 76%,
+        rgba(255, 255, 255, 0.52) 88%,
+        rgba(255, 255, 255, 0.90) 96%,
+        rgba(255, 255, 255, 1.00) 100%
+      );
+    }
+    .compare-lens::after {
+      background: radial-gradient(
+        circle at center,
+        rgba(255, 255, 255, 0.00) 52%,
+        rgba(255, 255, 255, 0.02) 62%,
+        rgba(255, 255, 255, 0.08) 72%,
+        rgba(255, 255, 255, 0.18) 82%,
+        rgba(255, 255, 255, 0.40) 92%,
+        rgba(255, 255, 255, 0.68) 100%
+      );
+      opacity: 1;
+    }
+    .compare-lens-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background-repeat: no-repeat;
+      background-color: transparent;
+      pointer-events: none;
+    }
+    .compare-lens-distortion {
+      --compare-lens-distortion-mask: radial-gradient(
+        circle at center,
+        transparent 0%,
+        transparent 44%,
+        rgba(0, 0, 0, 0.08) 54%,
+        rgba(0, 0, 0, 0.40) 62%,
+        rgba(0, 0, 0, 0.85) 70%,
+        rgba(0, 0, 0, 1.00) 78%,
+        rgba(0, 0, 0, 1.00) 88%,
+        rgba(0, 0, 0, 0.70) 94%,
+        rgba(0, 0, 0, 0.22) 98%,
+        transparent 100%
+      );
+      z-index: 2;
+      opacity: 1;
+      filter: contrast(1.30) saturate(1.18) brightness(1.06);
+      -webkit-mask-image: var(--compare-lens-distortion-mask);
+      mask-image: var(--compare-lens-distortion-mask);
+      pointer-events: none;
+    }
+    .compare-slider {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      appearance: none;
+      background: transparent;
+      cursor: ew-resize;
+    }
+    .compare-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 44px;
+      height: 100%;
+      border: 0;
+      background: transparent;
+      cursor: ew-resize;
+    }
+    .compare-slider::-moz-range-thumb {
+      width: 44px;
+      height: 100%;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      cursor: ew-resize;
+    }
+    .compare-slider::-webkit-slider-runnable-track {
+      height: 100%;
+      background: transparent;
+    }
+    .compare-slider::-moz-range-track {
+      height: 100%;
+      background: transparent;
+    }
+    .compare-divider {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: var(--position);
+      z-index: 1;
+      width: 1.5px;
+      background: rgba(255, 255, 255, 0.94);
+      transform: translateX(-50%);
+      box-shadow:
+        0 0 0 0.5px rgba(17, 20, 24, 0.08),
+        0 2px 14px rgba(17, 20, 24, 0.22);
+      pointer-events: none;
+    }
+    .compare-handle {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.78);
+      border: 0.5px solid rgba(255, 255, 255, 0.75);
+      box-shadow:
+        0 1px 2px rgba(17, 20, 24, 0.10),
+        0 4px 12px rgba(17, 20, 24, 0.16),
+        0 10px 24px rgba(17, 20, 24, 0.16),
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.95),
+        inset 0 -0.5px 0 rgba(17, 20, 24, 0.04);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      transition:
+        transform 0.24s cubic-bezier(0.2, 0.7, 0.2, 1),
+        box-shadow 0.24s cubic-bezier(0.2, 0.7, 0.2, 1),
+        background-color 0.24s ease;
+    }
+    .compare-frame:hover .compare-handle,
+    .compare-frame:focus-within .compare-handle {
+      background: rgba(255, 255, 255, 0.88);
+      transform: translateX(-50%) scale(1.10);
+      box-shadow:
+        0 2px 4px rgba(17, 20, 24, 0.12),
+        0 8px 18px rgba(17, 20, 24, 0.20),
+        0 16px 36px rgba(17, 20, 24, 0.20),
+        inset 0 0.5px 0 rgba(255, 255, 255, 1),
+        inset 0 -0.5px 0 rgba(17, 20, 24, 0.04);
+    }
+    .compare-frame:active .compare-handle {
+      transform: translateX(-50%) scale(1.02);
+      transition-duration: 0.08s;
+    }
+    .compare-handle::before,
+    .compare-handle::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 4px;
+      height: 4px;
+      border-style: solid;
+      border-color: rgba(17, 20, 24, 0.72);
+      transform: translateY(-50%) rotate(45deg);
+    }
+    .compare-handle::before {
+      left: 7px;
+      border-width: 0 0 1.4px 1.4px;
+    }
+    .compare-handle::after {
+      right: 7px;
+      border-width: 1.4px 1.4px 0 0;
+    }
+    .compare-caption {
+      margin-top: 10px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    pre.code {
+      background: var(--code-bg);
+      color: var(--code-fg);
+      padding: 18px 20px;
+      border-radius: 10px;
+      overflow-x: auto;
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+    pre.code .c { color: #94a3b8; }
+
+    .datasets {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .dataset {
+      padding: 6px 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+    a.dataset:hover {
+      color: var(--fg);
+      border-color: var(--fg);
+      background: #fff;
+      text-decoration: none;
+    }
+
+    footer {
+      text-align: center;
+      padding: 40px 20px 60px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 2.4rem; }
+      .hero h2 { font-size: 1.05rem; }
+      section h3 { font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="container">
+      <h1>PAGaS</h1>
+      <h2>Pixel-Aligned 1DoF Gaussian Splatting for Depth Refinement</h2>
+      <a class="venue" href="https://3dmv.org/2026/" target="_blank" rel="noopener noreferrer">CVPR 2026 3DMV</a>
+
+      <p class="authors">
+        <a href="https://davidrecasens.github.io/">David Recasens</a><span class="sup">1</span>,
+        <a href="https://www.rmaier.net/">Robert Maier</a>,
+        <a href="https://aljazbozic.github.io/">Aljaz Bozic</a>,
+        <a href="https://www.linkedin.com/in/stephanegrabli/">Stephane Grabli</a>,<br />
+        <a href="https://i3a.unizar.es/es/investigadores/javier-civera-sancho">Javier Civera</a><span class="sup">1</span>,
+        <a href="https://sites.google.com/site/tony2ng/">Tony Tung</a>,
+        <a href="https://morpheo.inrialpes.fr/people/Boyer/">Edmond Boyer</a>
+      </p>
+      <p class="affil"><span class="sup">1</span><a href="https://ropert.i3a.es/">University of Zaragoza</a></p>
+
+      <div class="badges">
+        <a class="badge" href="#">Paper</a>
+        <a class="badge ghost" href="https://github.com/UZ-SLAMLab/pagas">Code</a>
+        <a class="badge ghost" href="#bibtex">BibTeX</a>
+      </div>
+    </div>
+
+    <div class="teaser container">
+      <img src="../assets/1dof.png" alt="1DoF Gaussian Splatting teaser" onerror="this.style.display='none'" />
+      <p class="caption">Instead of optimizing a free 3D Gaussian, PAGaS makes each pixel’s Gaussian depth-dependent: its 3D position, size, and orientation are derived from depth, while color and opacity are fixed, leaving the depth parameter as the sole degree of freedom.</p>
+    </div>
+  </header>
+
+  <section id="abstract">
+    <div class="container">
+      <h3>What is PAGaS? 🤔</h3>
+      <p>
+        PAGaS refines per-view depth maps using pixel-aligned Gaussians that carry a single degree of freedom along their viewing ray. Starting from a coarse mesh or initial depth (e.g., from MVSAnywhere, 2DGS, or PGSR), PAGaS optimizes depth using only photometric losses from a few adjacent views and captures unprecedented pixel-level detail in both object-centric and large-scale scenes.
+      
+        PAGaS is a photometric, optimization-based multi-view stereo depth refinement method formulated in a constrained Gaussian Splatting framework. Starting from a coarse but globally consistent depth or mesh reconstruction (e.g., from MVSAnywhere, 2DGS, or PGSR), it refines each per-view depth map using a small set of neighboring views for photometric supervision, representing every target pixel with a spherical 1DoF Gaussian constrained to slide only along its back-projected camera ray. This depth-only parameterization makes full-resolution refinement practical under modest memory and runtime budgets, while recovering unprecedented fine-grained pixel-level detail.
+    </p>
+    </div>
+  </section>
+
+  <section id="depth-refinement">
+    <div class="container">
+      <h3>PAGaS depth refinement 🤯</h3>
+      <p>
+        The synchronized comparisons below show how PAGaS sharpens geometric detail after refining
+        MVSA, 2DGS, and PGSR reconstructions. Drag the slider to see how PAGaS refines the geometry, and move the pointer over any image to slide a magnifying lens to appreciate the added pixel-level detail.
+      </p>
+
+      <div class="refinement-grid">
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan24/mvsa_0030.png"
+              alt="MVSA result on DTU scan24 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan24/mvsa_pagas_000030.png"
+              alt="MVSA result on DTU scan24 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">MVSA</div>
+            <div class="compare-badge compare-badge-right">MVSA + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare MVSA before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan24/2dgs_0030.png"
+              alt="2DGS result on DTU scan24 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan24/2dgs_pagas_000030.png"
+              alt="2DGS result on DTU scan24 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">2DGS</div>
+            <div class="compare-badge compare-badge-right">2DGS + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare 2DGS before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan24/pgsr_0030.png"
+              alt="PGSR result on DTU scan24 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan24/pgsr_pagas_000030.png"
+              alt="PGSR result on DTU scan24 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">PGSR</div>
+            <div class="compare-badge compare-badge-right">PGSR + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare PGSR before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+      </div>
+      <div class="compare-caption">DTU scan24</div>
+
+      <div class="refinement-grid">
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan106/mvsa0008.png"
+              alt="MVSA result on DTU scan106 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan106/mvsa_pagas000008.png"
+              alt="MVSA result on DTU scan106 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">MVSA</div>
+            <div class="compare-badge compare-badge-right">MVSA + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare MVSA before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan106/2dgs0008.png"
+              alt="2DGS result on DTU scan106 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan106/2dgs_pagas000008.png"
+              alt="2DGS result on DTU scan106 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">2DGS</div>
+            <div class="compare-badge compare-badge-right">2DGS + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare 2DGS before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan106/pgsr0008.png"
+              alt="PGSR result on DTU scan106 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan106/pgsr_pagas000008.png"
+              alt="PGSR result on DTU scan106 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">PGSR</div>
+            <div class="compare-badge compare-badge-right">PGSR + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare PGSR before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+      </div>
+      <div class="compare-caption">DTU scan106</div>
+
+      <div class="refinement-grid">
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan122/mvsa0057.png"
+              alt="MVSA result on DTU scan122 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan122/mvsa_pagas000057.png"
+              alt="MVSA result on DTU scan122 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">MVSA</div>
+            <div class="compare-badge compare-badge-right">MVSA + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare MVSA before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan122/2dgs0057.png"
+              alt="2DGS result on DTU scan122 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan122/2dgs_pagas000057.png"
+              alt="2DGS result on DTU scan122 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">2DGS</div>
+            <div class="compare-badge compare-badge-right">2DGS + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare 2DGS before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan122/pgsr0057.png"
+              alt="PGSR result on DTU scan122 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan122/pgsr_pagas000057.png"
+              alt="PGSR result on DTU scan122 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">PGSR</div>
+            <div class="compare-badge compare-badge-right">PGSR + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare PGSR before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+      </div>
+      <div class="compare-caption">DTU scan122</div>
+
+      <div class="refinement-grid">
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan69/mvsa0033.png"
+              alt="MVSA result on DTU scan69 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan69/mvsa-pagas000033.png"
+              alt="MVSA result on DTU scan69 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">MVSA</div>
+            <div class="compare-badge compare-badge-right">MVSA + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare MVSA before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan69/2dgs0033.png"
+              alt="2DGS result on DTU scan69 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan69/2dgs-pagas000033.png"
+              alt="2DGS result on DTU scan69 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">2DGS</div>
+            <div class="compare-badge compare-badge-right">2DGS + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare 2DGS before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/scan69/pgsr0033.png"
+              alt="PGSR result on DTU scan69 before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/scan69/pgsr-pagas000033.png"
+              alt="PGSR result on DTU scan69 after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">PGSR</div>
+            <div class="compare-badge compare-badge-right">PGSR + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare PGSR before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+      </div>
+      <div class="compare-caption">DTU scan69</div>
+
+      <div class="refinement-grid">
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/barn/mvsa000239.png"
+              alt="MVSA result on Tanks and Temples Barn before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/barn/mvsa_pagas000238.png"
+              alt="MVSA result on Tanks and Temples Barn after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">MVSA</div>
+            <div class="compare-badge compare-badge-right">MVSA + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare MVSA before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/barn/2dgs000239.png"
+              alt="2DGS result on Tanks and Temples Barn before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/barn/2dgs_pagas000238.png"
+              alt="2DGS result on Tanks and Temples Barn after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">2DGS</div>
+            <div class="compare-badge compare-badge-right">2DGS + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare 2DGS before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/barn/pgsr000239.png"
+              alt="PGSR result on Tanks and Temples Barn before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/barn/pgsr_pagas000238.png"
+              alt="PGSR result on Tanks and Temples Barn after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">PGSR</div>
+            <div class="compare-badge compare-badge-right">PGSR + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare PGSR before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+      </div>
+      <div class="compare-caption">Tanks and Temples Barn</div>
+
+      <div class="refinement-grid">
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/courthouse/mvsa000986.png"
+              alt="MVSA result on Tanks and Temples Courthouse before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/courthouse/mvsa-pagas000985.png"
+              alt="MVSA result on Tanks and Temples Courthouse after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">MVSA</div>
+            <div class="compare-badge compare-badge-right">MVSA + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare MVSA before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/courthouse/2dgs000986.png"
+              alt="2DGS result on Tanks and Temples Courthouse before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/courthouse/2dgs-pagas000985.png"
+              alt="2DGS result on Tanks and Temples Courthouse after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">2DGS</div>
+            <div class="compare-badge compare-badge-right">2DGS + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare 2DGS before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/courthouse/pgsr000986.png"
+              alt="PGSR result on Tanks and Temples Courthouse before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/courthouse/pgsr-pagas000985.png"
+              alt="PGSR result on Tanks and Temples Courthouse after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">PGSR</div>
+            <div class="compare-badge compare-badge-right">PGSR + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare PGSR before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+      </div>
+      <div class="compare-caption">Tanks and Temples Courthouse</div>
+
+      <div class="refinement-grid">
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/truck/mvsa000040.png"
+              alt="MVSA result on Tanks and Temples Truck before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/truck/mvsa_pagas000039.png"
+              alt="MVSA result on Tanks and Temples Truck after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">MVSA</div>
+            <div class="compare-badge compare-badge-right">MVSA + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare MVSA before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/truck/2dgs000040.png"
+              alt="2DGS result on Tanks and Temples Truck before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/truck/2dgs_pagas000039.png"
+              alt="2DGS result on Tanks and Temples Truck after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">2DGS</div>
+            <div class="compare-badge compare-badge-right">2DGS + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare 2DGS before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/truck/pgsr000040.png"
+              alt="PGSR result on Tanks and Temples Truck before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/truck/pgsr-pagas000039.png"
+              alt="PGSR result on Tanks and Temples Truck after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">PGSR</div>
+            <div class="compare-badge compare-badge-right">PGSR + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare PGSR before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+      </div>
+      <div class="compare-caption">Tanks and Temples Truck</div>
+
+      <div class="refinement-grid">
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/actorshq/body.png"
+              alt="Colmap result on ActorsHQ body view before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/actorshq/body_pagas.png"
+              alt="Colmap result on ActorsHQ body view after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">Colmap</div>
+            <div class="compare-badge compare-badge-right">Colmap + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare Colmap on ActorsHQ body view before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="refinement-card">
+          <div class="compare-frame">
+            <img
+              class="compare-image before-image"
+              src="images/actorshq/leg.png"
+              alt="Colmap result on ActorsHQ leg view before PAGaS refinement"
+            />
+            <img
+              class="compare-image after-image"
+              src="images/actorshq/leg_pagas.png"
+              alt="Colmap result on ActorsHQ leg view after PAGaS refinement"
+            />
+            <div class="compare-badge compare-badge-left">Colmap</div>
+            <div class="compare-badge compare-badge-right">Colmap + PAGaS</div>
+            <input
+              class="compare-slider"
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Compare Colmap on ActorsHQ leg view before and after PAGaS refinement"
+            />
+            <div class="compare-divider" aria-hidden="true">
+              <div class="compare-handle"></div>
+            </div>
+          </div>
+        </figure>
+      </div>
+      <div class="compare-caption">ActorsHQ</div>
+    </div>
+  </section>
+
+  <section id="method">
+    <div class="container">
+      <h3>Method 🤓</h3>
+
+      <div class="features">
+        <div class="feature">
+          <h4>1DoF Gaussians</h4>
+          <p>Each pixel gets one Gaussian tied to its camera ray, with all its parameters derived from the depth, so only depth is optimized.</p>
+        </div>
+        <div class="feature">
+          <h4>Opacity-Aware 3DGS Rasterizer</h4>
+          <p>Renders only the visible front surface at each pixel, filtering out Gaussians from
+             hidden surfaces behind it.</p>
+        </div>
+      </div>
+
+      <p style="margin-top: 24px;">
+        <strong>1DoF Gaussians.</strong>
+        By conditioning the Gaussian parameters on depth and reducing the optimization from 59 parameters to a single depth variable, PAGaS substantially lowers the optimization, memory, and runtime requirements. This enables refinement at full input resolution under practical compute budgets and without pretraining, whereas prior Gaussian-based baselines in the paper require aggressive downsampling or incur sharply higher memory and runtime costs at higher resolutions.
+      </p>
+
+      <p style="margin-top: 24px;">
+        <strong>Opacity-Aware 3DGS Rasterizer.</strong>
+        Unlike standard Gaussian rasterizers, which alpha-blend all overlapping splats, this
+        occlusion-aware rasterizer identifies the visible front surface at each pixel and rejects
+        Gaussians from deeper, hidden surfaces. This prevents background bleed-through and produces
+        clean depth compositing without needing extra Gaussians to make the foreground opaque.
+      </p>
+
+      <p style="margin-top: 32px;">The code includes an easy to use <strong>end-to-end automatic 3D reconstruction pipeline</strong> with <code>run_automatic.sh</code>:</p>
+      <div class="pipeline">images &rarr; camera intrinsics and extrinsics &rarr; optional mask &rarr; initial baseline mesh
+       &rarr; mesh to depth &rarr; refined depth by PAGaS &rarr; refined depth to mesh</div>
+    </div>
+  </section>
+
+  <section id="results">
+    <div class="container">
+      <h3>Evaluation 🧐</h3>
+      <p>
+        We evaluate PAGaS quantitatively on standard multi-view reconstruction benchmarks.
+        Baselines include 2DGS, PGSR, and MVSAnywhere. Reproduce the paper numbers with
+        <code>eval.sh</code>
+      </p>
+      <div class="datasets">
+        <a class="dataset" href="https://roboimagedata.compute.dtu.dk/?page_id=36" target="_blank" rel="noopener noreferrer">DTU</a>
+        <a class="dataset" href="https://www.tanksandtemples.org/" target="_blank" rel="noopener noreferrer">Tanks and Temples</a>
+      </div>
+      <p style="margin-top: 24px;">We also evaluate qualitatively on:</p>
+      <div class="datasets">
+        <a class="dataset" href="https://actors-hq.com/" target="_blank" rel="noopener noreferrer">ActorsHQ</a>
+        <a class="dataset" href="https://github.com/YoYo000/BlendedMVS" target="_blank" rel="noopener noreferrer">BlendedMVS</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="bibtex">
+    <div class="container">
+      <h3>BibTeX 😊</h3>
+<pre class="code">
+    comming soon...
+</pre>
+    </div>
+  </section>
+
+  <section id="license">
+    <div class="container">
+      <h3>License 🫡</h3>
+      <p>Creative Commons Attribution-NonCommercial 4.0 International</p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>Made with love at the University of Zaragoza and with amazing collaborators.</p>
+    </div>
+  </footer>
+  <script>
+    const depthRefinementSection = document.querySelector("#depth-refinement");
+
+    if (depthRefinementSection) {
+      const initialCompareValue = "50";
+      const lensZoomFactor = 4;
+      const lensDistortionZoomFactor = 8.2;
+      const lensDiameterPx =
+        Number.parseFloat(getComputedStyle(depthRefinementSection).getPropertyValue("--compare-lens-size")) || 136;
+      const lensRadiusPx = lensDiameterPx / 2;
+      const idlePointerState = { x: 0.5, y: 0.5 };
+
+      function clamp(value, min, max) {
+        if (max < min) {
+          return (min + max) / 2;
+        }
+        return Math.min(Math.max(value, min), max);
+      }
+
+      function createLensLayer(image, extraClassName = "") {
+        const layer = document.createElement("div");
+        layer.className = extraClassName
+          ? `compare-lens-layer ${extraClassName}`
+          : "compare-lens-layer";
+        layer.style.backgroundImage = `url("${image.currentSrc || image.src}")`;
+        return layer;
+      }
+
+      function getLensBackgroundStyle(rect, sampleX, sampleY, zoomFactor) {
+        const widthPx = rect.width * zoomFactor;
+        const heightPx = rect.height * zoomFactor;
+        const positionXPx = lensRadiusPx - sampleX * zoomFactor;
+        const positionYPx = lensRadiusPx - sampleY * zoomFactor;
+
+        return {
+          size: `${widthPx}px ${heightPx}px`,
+          position: `${positionXPx}px ${positionYPx}px`,
+        };
+      }
+
+      function applyLensBackground(layer, backgroundStyle) {
+        layer.style.backgroundSize = backgroundStyle.size;
+        layer.style.backgroundPosition = backgroundStyle.position;
+      }
+
+      function getLensDividerOffsetPx(dividerX, sampleX, zoomFactor) {
+        return clamp(
+          lensRadiusPx + (dividerX - sampleX) * zoomFactor,
+          0,
+          lensDiameterPx
+        );
+      }
+
+      // Each refinement grid (one per scene) keeps its own slider and lens state so that
+      // interacting with one scene does not tug the frames in the others.
+      function initRefinementGrid(grid) {
+        const comparisonStates = Array.from(
+          grid.querySelectorAll(".compare-frame"),
+          (frame) => {
+            const beforeImage = frame.querySelector(".before-image");
+            const afterImage = frame.querySelector(".after-image");
+            const slider = frame.querySelector(".compare-slider");
+
+            const lens = document.createElement("div");
+            lens.className = "compare-lens";
+            lens.setAttribute("aria-hidden", "true");
+
+            const lensBefore = createLensLayer(beforeImage);
+            const lensAfter = createLensLayer(afterImage);
+            const lensBeforeDistortion = createLensLayer(beforeImage, "compare-lens-distortion");
+            const lensAfterDistortion = createLensLayer(afterImage, "compare-lens-distortion");
+
+            lens.append(lensBefore, lensAfter, lensBeforeDistortion, lensAfterDistortion);
+            frame.append(lens);
+
+            return {
+              frame,
+              slider,
+              lens,
+              lensBefore,
+              lensAfter,
+              lensBeforeDistortion,
+              lensAfterDistortion,
+            };
+          }
+        );
+        let pointerState = { ...idlePointerState };
+
+        function updateLensPositions() {
+          for (const state of comparisonStates) {
+            const rect = state.frame.getBoundingClientRect();
+
+            if (!rect.width || !rect.height) {
+              continue;
+            }
+
+            const sampleX = clamp(pointerState.x * rect.width, 0, rect.width);
+            const sampleY = clamp(pointerState.y * rect.height, 0, rect.height);
+
+            const lensX = clamp(sampleX, lensRadiusPx, rect.width - lensRadiusPx);
+            const lensY = clamp(sampleY, lensRadiusPx, rect.height - lensRadiusPx);
+
+            state.lens.style.left = `${lensX}px`;
+            state.lens.style.top = `${lensY}px`;
+
+            const baseBackground = getLensBackgroundStyle(rect, sampleX, sampleY, lensZoomFactor);
+            const distortionBackground = getLensBackgroundStyle(
+              rect,
+              sampleX,
+              sampleY,
+              lensDistortionZoomFactor
+            );
+
+            applyLensBackground(state.lensBefore, baseBackground);
+            applyLensBackground(state.lensAfter, baseBackground);
+            applyLensBackground(state.lensBeforeDistortion, distortionBackground);
+            applyLensBackground(state.lensAfterDistortion, distortionBackground);
+
+            const dividerX = (Number(state.slider.value) / 100) * rect.width;
+            const lensDividerX = getLensDividerOffsetPx(dividerX, sampleX, lensZoomFactor);
+            state.lensAfter.style.clipPath = `inset(0 0 0 ${lensDividerX}px)`;
+            const lensDistortionDividerX = getLensDividerOffsetPx(
+              dividerX,
+              sampleX,
+              lensDistortionZoomFactor
+            );
+            state.lensAfterDistortion.style.clipPath = `inset(0 0 0 ${lensDistortionDividerX}px)`;
+          }
+        }
+
+        function syncComparisons(value) {
+          const compareValue = String(value);
+          const comparePosition = `${compareValue}%`;
+
+          for (const state of comparisonStates) {
+            state.frame.style.setProperty("--position", comparePosition);
+            if (state.slider.value !== compareValue) {
+              state.slider.value = compareValue;
+            }
+          }
+
+          updateLensPositions();
+        }
+
+        function handleComparisonInput(event) {
+          syncComparisons(event.currentTarget.value);
+        }
+
+        function setPointerState(normalizedX, normalizedY) {
+          pointerState = {
+            x: clamp(normalizedX, 0, 1),
+            y: clamp(normalizedY, 0, 1),
+          };
+          updateLensPositions();
+        }
+
+        function handleComparisonPointerMove(event) {
+          const rect = event.currentTarget.getBoundingClientRect();
+
+          if (!rect.width || !rect.height) {
+            return;
+          }
+
+          setPointerState(
+            (event.clientX - rect.left) / rect.width,
+            (event.clientY - rect.top) / rect.height
+          );
+        }
+
+        function resetPointerState() {
+          setPointerState(idlePointerState.x, idlePointerState.y);
+        }
+
+        for (const state of comparisonStates) {
+          state.slider.addEventListener("input", handleComparisonInput);
+          state.frame.addEventListener("pointermove", handleComparisonPointerMove);
+        }
+
+        grid.addEventListener("pointerleave", resetPointerState);
+        window.addEventListener("resize", updateLensPositions);
+
+        syncComparisons(initialCompareValue);
+        resetPointerState();
+      }
+
+      for (const grid of depthRefinementSection.querySelectorAll(".refinement-grid")) {
+        initRefinementGrid(grid);
+      }
+    }
+  </script>
+</body>
+</html>
