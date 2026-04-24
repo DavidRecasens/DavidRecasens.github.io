@@ -503,8 +503,6 @@
     <div class="container">
       <h3>What is PAGaS? 🤔</h3>
       <p>
-        PAGaS refines per-view depth maps using pixel-aligned Gaussians that carry a single degree of freedom along their viewing ray. Starting from a coarse mesh or initial depth (e.g., from MVSAnywhere, 2DGS, or PGSR), PAGaS optimizes depth using only photometric losses from a few adjacent views and captures unprecedented pixel-level detail in both object-centric and large-scale scenes.
-      
         PAGaS is a photometric, optimization-based multi-view stereo depth refinement method formulated in a constrained Gaussian Splatting framework. Starting from a coarse but globally consistent depth or mesh reconstruction (e.g., from MVSAnywhere, 2DGS, or PGSR), it refines each per-view depth map using a small set of neighboring views for photometric supervision, representing every target pixel with a spherical 1DoF Gaussian constrained to slide only along its back-projected camera ray. This depth-only parameterization makes full-resolution refinement practical under modest memory and runtime budgets, while recovering unprecedented fine-grained pixel-level detail.
     </p>
     </div>
